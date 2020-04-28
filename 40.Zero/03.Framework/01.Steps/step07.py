@@ -5,6 +5,17 @@ class Variable:
     def __init__(self, data):
         self.data = data
         self.grad = None # 微分値
+        self.creator = None 
+
+    def set_creator(self, func):
+        self.creator = func
+
+    def backward(self):
+        f = self.creator    #1 関数を取得
+        if f is not None:
+            x = f.input     #2 関数の入力を取得
+            x.grad = f.backward(self.grad) #3 関数のbackwardメソッドを呼ぶ
+            x.backward()    #3 自分より1つ前の変数のbackwardメソッドを呼ぶ(再帰)  
 
 
 # 関数クラス
@@ -15,6 +26,7 @@ class Function:
         output = Variable(y)
         output.set_creator(self) # 出力変数の生みの親を覚えさせる
         self.input = input # 入力変数
+        self.output = output # 出力も覚えさせる
         return output
 
     # 順伝播
@@ -67,6 +79,42 @@ def f(x):
 
 # 実装
 
+
+'''
+# 逆伝番
+y.grad = np.array(1.0)
+b.grad = C.backward(y.grad)
+a.grad = B.backward(b.grad)
+x.grad = A.backward(a.grad)
+print(x.grad)
+'''
+
+'''
+# 逆向きに計算グラフのノードを溯る
+assert y.creator == C
+assert y.creator.input == b
+assert y.creator.input.creator == B
+assert y.creator.input.creator.input == a
+assert y.creator.input.creator.input.creator == A
+assert y.creator.input.creator.input.creator.input == x
+
+y.grad = np.array(1.0)
+
+C = y.creator               #1 関数を取得
+b = C.input                 #2 関数の入力を取得
+b.grad = C.backward(y.grad) #3 関数のbackwardメソッドを呼ぶ
+
+B = b.creator               #1 関数を取得
+a = B.input                 #2 関数の入力を取得
+a.grad = B.backward(b.grad) #3 関数のbackwardメソッドを呼ぶ
+
+A = a.creator               #1 関数を取得
+x = A.input                 #2 関数の入力を取得
+x.grad = A.backward(a.grad) #3 関数のbackwardメソッドを呼ぶ
+
+print(x.grad)
+'''
+
 # インスタンス
 A = Square()
 B = Exp()
@@ -80,7 +128,5 @@ y = C(b)
 
 # 逆伝番
 y.grad = np.array(1.0)
-b.grad = C.backward(y.grad)
-a.grad = B.backward(b.grad)
-x.grad = A.backward(a.grad)
+y.backward()
 print(x.grad)
